@@ -1,0 +1,12 @@
+modLoader="javafml"
+loaderVersion="[28,)"
+[[mods]]
+    modId="itemtextureexporter"
+    version="${file.jarVersion}"
+    displayName="Item Render Exporter"
+    credits="The makers of Forge and the people on their discord for helping with questions"
+    authors="JoJoModding"
+    description='''
+This Mod allows you to export Items and Blocks to an .png image in the way they are rendered in the inventory.
+To start the exporting process, simply click on the config button on the lower left.
+'''

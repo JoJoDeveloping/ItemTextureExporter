@@ -1,0 +1,14 @@
+{
+  "_comment": "GUIs:",
+  "gui.itemtextureexporter.main": "Item Texture Export",
+  "gui.itemtextureexporter.main.return": "Return to last",
+  "gui.itemtextureexporter.main.startexport": "Start exporting",
+  "gui.itemtextureexporter.main.texsize": "Export texture size:",
+  "gui.itemtextureexporter.main.outfolder1": "Export folder:",
+  "gui.itemtextureexporter.main.outfolder2": "   (relative to .minecraft)",
+  "gui.itemtextureexporter.error.notanum": "%d is not a valid number!",
+  "gui.itemtextureexporter.error.notadir": "%s is not a directory!",
+  "gui.itemtextureexporter.error.io": "IO Exception: %s",
+  "gui.itemtextureexporter.processing.done": "Exported %d block/itemstates!",
+  "gui.itemtextureexporter.processing.progress": "Exporting, %.02f%% done"
+}

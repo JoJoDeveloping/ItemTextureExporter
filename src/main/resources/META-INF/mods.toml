@@ -3,7 +3,7 @@ loaderVersion="[28,)"
 [[mods]]
     modId="itemtextureexporter"
     version="${file.jarVersion}"
-    displayName="Item Render Exporter"
+    displayName="Item Texture Exporter"
     credits="The makers of Forge and the people on their discord for helping with questions"
     authors="JoJoModding"
     description='''

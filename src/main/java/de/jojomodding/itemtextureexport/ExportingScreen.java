@@ -1,35 +1,24 @@
 package de.jojomodding.itemtextureexport;
 
-import com.google.common.collect.ImmutableSet;
-import de.jojomodding.itemtextureexport.render.ItemTextureRenderer;
+import de.jojomodding.itemtextureexport.render.Processing;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.client.gui.widget.button.Button;
 import net.minecraft.client.gui.widget.list.ExtendedList;
-import net.minecraft.client.renderer.ItemRenderer;
 import net.minecraft.client.resources.I18n;
+import net.minecraft.item.ItemGroup;
 import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.util.Util;
-import net.minecraft.util.text.ITextComponent;
+import net.minecraft.util.NonNullList;
 import net.minecraft.util.text.TranslationTextComponent;
-import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.event.TickEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.ForgeI18n;
 import net.minecraftforge.fml.client.config.GuiButtonExt;
 import net.minecraftforge.registries.ForgeRegistries;
 import org.lwjgl.opengl.GL11;
 
-import javax.imageio.ImageIO;
-import java.awt.image.BufferedImage;
-import java.io.File;
-import java.io.IOException;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class ExportingScreen extends Screen {
 
@@ -51,7 +40,7 @@ public class ExportingScreen extends Screen {
         this.addButton(exitButton = new GuiButtonExt(50, this.height - 38, this.width / 2 - 55, 20,
                 I18n.format("gui.itemtextureexporter.main.return"), b -> minecraft.displayGuiScreen(lastScreen)));
         this.addButton(exportButton = new GuiButtonExt(this.width / 2 + 5, this.height - 38, this.width / 2 - 55, 20,
-                I18n.format("gui.itemtextureexporter.main.startexport"), b -> process = new Processing()));
+                I18n.format("gui.itemtextureexporter.main.startexport"), b -> process = new Processing(this)));
         this.addButton(textureSize = new TextFieldWidget(font, 55 + font.getStringWidth(I18n.format("gui.itemtextureexporter.main.texsize")),
                 56, 50, 16, null, "128"));
         textureSize.setMaxStringLength(4);
@@ -63,7 +52,11 @@ public class ExportingScreen extends Screen {
         setProcessing(false);
     }
 
-    private void setProcessing(boolean processing){
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
+    public void setProcessing(boolean processing){
         textureSize.active = !processing;
         outputFolder.active = !processing;
         exportButton.active = !processing;
@@ -83,6 +76,7 @@ public class ExportingScreen extends Screen {
                 }
             });
             outputFolder.setValidator(s -> true);
+            process = null;
         }
     }
 
@@ -95,8 +89,23 @@ public class ExportingScreen extends Screen {
         return !isProcessing;
     }
 
-    private Set<ItemStack> stacksToRender() {
-        return ForgeRegistries.ITEMS.getEntries().stream().map(Map.Entry::getValue).map(ItemStack::new).collect(Collectors.toSet());
+    public Set<ItemStack> stacksToRender() {
+        return Stream.concat(
+                ForgeRegistries.ITEMS.getEntries().stream().
+                        map(Map.Entry::getValue).
+                        map(ItemStack::new),
+                allCreativeTabs()).collect(Collectors.toSet());
+    }
+
+    private Stream<ItemStack> allCreativeTabs() {
+        NonNullList<ItemStack> list = NonNullList.create();
+        for (ItemGroup group : ItemGroup.GROUPS) {
+            if (ItemGroup.HOTBAR == group || ItemGroup.SEARCH == group) {
+                continue;
+            }
+            group.fill(list);
+        }
+        return list.stream();
     }
 
     @Override
@@ -113,69 +122,13 @@ public class ExportingScreen extends Screen {
         super.render(mouseX, mouseY, partialT);
     }
 
-    private class Processing {
-
-        private int texSize;
-        private File outputFolder;
-        private ItemTextureRenderer renderer;
-        private Iterator<ItemStack> toProcess;
-        private int alreadyProcessed;
-        private float totalNumber;
-
-        public Processing() {
-            try {
-                texSize = Integer.parseInt(textureSize.getText());
-                outputFolder = new File(Minecraft.getInstance().gameDir, ExportingScreen.this.outputFolder.getText());
-                if (outputFolder.isFile() || !(outputFolder.mkdirs() || outputFolder.isDirectory())) {
-                    throw new IOException(I18n.format("gui.itemtextureexporter.error.notadir", ExportingScreen.this.outputFolder.getText()));
-                }
-                setProcessing(true);
-                receiveUpdate(0);
-                renderer = new ItemTextureRenderer(Minecraft.getInstance().getItemRenderer());
-                Set<ItemStack> toRender = stacksToRender();
-                totalNumber = toRender.size();
-                toProcess = toRender.iterator();
-                alreadyProcessed = 0;
-            } catch (NumberFormatException e) {
-                status = I18n.format("gui.itemtextureexporter.error.notanum", textureSize.getText());
-            } catch (IOException e) {
-                status = I18n.format("gui.itemtextureexporter.error.io", e.getMessage());
-            }
-        }
-
-        private void processSingeItemstack(ItemStack stack) throws IOException {
-            BufferedImage bi = new BufferedImage(texSize, texSize, BufferedImage.TYPE_4BYTE_ABGR);
-            renderer.renderItemstack(stack, bi, false);
-            File outputResLoc = new File(outputFolder, stack.getItem().getRegistryName().getNamespace());
-            if (!outputResLoc.mkdir() && !outputResLoc.isDirectory())
-                throw new IOException(I18n.format("gui.itemtextureexporter.error.notadir", outputResLoc.getPath().toString()));
-            ImageIO.write(bi, "png", new File(outputResLoc, stack.getItem().getRegistryName().getPath() + ".png"));
-        }
-
-        private void continueProcessing() {
-            try {
-                for (int i = 0; i < 1; i++) {
-                    if (!toProcess.hasNext()) {
-                        stopProcessing(alreadyProcessed);
-                        return;
-                    }
-                    processSingeItemstack(toProcess.next());
-                    receiveUpdate(100 * (alreadyProcessed++) / totalNumber);
-                }
-            } catch (IOException e) {
-                stopProcessing(0);
-                status = I18n.format("gui.itemtextureexporter.error.io", e.getMessage());
-            }
-        }
-
-        private void stopProcessing(int totalImgs){
-            setProcessing(false);
-            process = null;
-            status = I18n.format("gui.itemtextureexporter.processing.done", totalImgs);
-        }
-
+    public String getTextureSize() {
+        return textureSize.getText();
     }
 
+    public String getOutputFolder() {
+        return outputFolder.getText();
+    }
 
 
     private class EnlargedList extends ExtendedList<EnlargedList.Entry>{

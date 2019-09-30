@@ -1,25 +1,14 @@
 package de.jojomodding.itemtextureexport.render;
 
 import com.mojang.blaze3d.platform.GlStateManager;
-import com.mojang.blaze3d.platform.TextureUtil;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.BufferBuilder;
 import net.minecraft.client.renderer.ItemRenderer;
 import net.minecraft.client.renderer.RenderHelper;
-import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.client.renderer.texture.NativeImage;
-import net.minecraft.client.renderer.texture.Texture;
-import net.minecraft.client.renderer.tileentity.ItemStackTileEntityRenderer;
-import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
-import net.minecraft.client.renderer.vertex.VertexFormat;
 import net.minecraft.client.shader.Framebuffer;
 import net.minecraft.item.ItemStack;
 import org.lwjgl.opengl.GL11;
 
-import java.awt.*;
 import java.awt.image.BufferedImage;
-import java.util.Arrays;
-import java.util.logging.Logger;
 
 public class ItemTextureRenderer {
 
@@ -69,7 +58,7 @@ public class ItemTextureRenderer {
                 for (int y = 0; y < output.getHeight(); y++)
                     output.setRGB(x, output.getHeight() - y - 1, rgba2argb(ni.getPixelRGBA(x, y)));
         }
-        fb.unbindFramebuffer();
+        fb.deleteFramebuffer();
     }
 
     private static final int rgba2argb(int rgba) {

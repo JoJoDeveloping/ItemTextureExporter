@@ -25,21 +25,19 @@ public class ItemTextureExporter
 
     public ItemTextureExporter() {
         DistExecutor.callWhenOn(Dist.DEDICATED_SERVER, () -> () -> {
-            System.err.println("The Item Render Exporter mod can only work on the client because the server does not have the required assets!");
+            LOGGER.error("The Item Render Exporter mod can only work on the client because the server does not have the required assets!");
             return null;
         });
         DistExecutor.callWhenOn(Dist.CLIENT, () -> () -> {
             if(!GLX.isUsingFBOs()){
-                System.err.println("The Item Render Exporter mod requires FBOs, your PC doesn't support them.");
+                LOGGER.error("The Item Render Exporter mod requires FBOs, your PC doesn't support them.");
                 return null;
             }
-            // Register the setup method for modloading
-            FMLJavaModLoadingContext.get().getModEventBus().addListener(this::setup);
-            MinecraftForge.EVENT_BUS.register(this);
-            ModLoadingContext.get().registerExtensionPoint(ExtensionPoint.CONFIGGUIFACTORY, () -> ExportingScreen::new);
+
+            ModLoadingContext.get().registerExtensionPoint(ExtensionPoint.CONFIGGUIFACTORY, () -> (minecraft, screen) -> new ExportingScreen(minecraft, screen, this));
 
             //ugly stuff until displaying the mod config works properly
-            ModInfo mi = ModList.get().getMods().stream().filter(min -> min.getModId().equals("itemtextureexporter")).findAny().get();
+            ModInfo mi = ModList.get().getMods().stream().filter(min -> min.getModId().equals("itemtextureexporter")).findAny().orElseThrow(() -> new IllegalStateException("We couldn't find ourselves in the mods list!"));
             List<ModInfo> mli = ModList.get().getMods();
             for(int i = 0; i < mli.size(); i++){
                 if(mli.get(i) == mi)
@@ -54,9 +52,8 @@ public class ItemTextureExporter
         });
     }
 
-    private void setup(final FMLCommonSetupEvent event)
-    {
-
+    public Logger getLogger() {
+        return LOGGER;
     }
 
 }

@@ -9,4 +9,5 @@ loaderVersion="[28,)"
     description='''
 This Mod allows you to export Items and Blocks to an .png image in the way they are rendered in the inventory.
 To start the exporting process, simply click on the config button on the lower left.
+If you can't click that button your PC is likely too old to support the required GL stuff (FBOs)
 '''

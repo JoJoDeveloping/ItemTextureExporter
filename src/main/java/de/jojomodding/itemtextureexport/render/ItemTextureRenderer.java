@@ -9,17 +9,26 @@ import net.minecraft.item.ItemStack;
 import org.lwjgl.opengl.GL11;
 
 import java.awt.image.BufferedImage;
+import java.io.Closeable;
+import java.io.File;
+import java.io.IOException;
 
-public class ItemTextureRenderer {
+public class ItemTextureRenderer implements Closeable {
 
     private ItemRenderer renderer;
+    private Framebuffer smallBuffer, largeBuffer;
 
-    public ItemTextureRenderer(ItemRenderer renderer) {
+    public ItemTextureRenderer(ItemRenderer renderer, int imageSize) {
         this.renderer = renderer;
+        smallBuffer = new Framebuffer(imageSize, imageSize, true, true);
+        largeBuffer = new Framebuffer(3 * imageSize, 3 * imageSize, true, true);
     }
 
-    public void renderItemstack(ItemStack is, BufferedImage output, boolean includesBorders) {
-        Framebuffer fb = new Framebuffer(output.getWidth(), output.getHeight(), true, true);
+    public void renderItemstack(ItemStack is, File output, boolean includesBorders) throws IOException {
+        Framebuffer fb = includesBorders ? largeBuffer : smallBuffer;
+//        if (output.getWidth() != fb.framebufferWidth || output.getHeight() != fb.framebufferHeight) {
+//            throw new IllegalArgumentException("Image is not sized correctly!");
+//        }
         fb.bindFramebuffer(true);
         GlStateManager.enableDepthTest();
         GlStateManager.enableBlend();
@@ -50,18 +59,26 @@ public class ItemTextureRenderer {
 
 
         fb.bindFramebufferTexture();
-        try (NativeImage ni = new NativeImage(output.getWidth(), output.getHeight(), true)) {
+        try (NativeImage ni = new NativeImage(fb.framebufferWidth, fb.framebufferHeight, true)) {
             ni.downloadFromFramebuffer(false);
-            int[] data = ni.makePixelArray();
-            assert data.length != output.getHeight() * output.getWidth();
-            for (int x = 0; x < output.getWidth(); x++)
-                for (int y = 0; y < output.getHeight(); y++)
-                    output.setRGB(x, output.getHeight() - y - 1, rgba2argb(ni.getPixelRGBA(x, y)));
+            ni.flip();
+            ni.write(output);
+//            int[] data = ni.makePixelArray();
+//            assert data.length != output.getHeight() * output.getWidth();
+//            for (int x = 0; x < output.getWidth(); x++)
+//                for (int y = 0; y < output.getHeight(); y++)
+//                    output.setRGB(x, output.getHeight() - y - 1, abgr2argb(ni.getPixelRGBA(x, y))); //getPixelRGBA actually returns abgr / big endian stuff
         }
-        fb.deleteFramebuffer();
+        fb.unbindFramebufferTexture();
+        fb.unbindFramebuffer();
     }
 
-    private static final int rgba2argb(int rgba) {
+    public void close() {
+        smallBuffer.deleteFramebuffer();
+        largeBuffer.deleteFramebuffer();
+    }
+
+    private static final int abgr2argb(int rgba) {
         return (rgba & 0xff000000)
                 | (rgba & 0x00ff0000) >> 16
                 | (rgba & 0x0000ff00)

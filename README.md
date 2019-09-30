@@ -10,6 +10,9 @@ Now you can control the exporting process, namely the texture size - which is th
 Then you click "Start export" and wait for the process to finish. Now you can find the resulting images in the folder specified above.
 You can repeat this as often as you like, and it always renders the items in the texture the current resourcepack specifies.
 
+## Downloads
+Find the download [here](https://www.curseforge.com/minecraft/mc-mods/item-texture-exporter).
+
 ## Legal stuff
 Although this project is licensed under LGPL 2.1, you (the user) are hereby granted a special exception: You may distribute the resulting images under terms of your choice, as long as you respect the copyright of the original texture creator.
 Usage of any of the images produced with this tool is subject to the license of the source images. I claim no ownership for images created with this tool. Use at your own risk.

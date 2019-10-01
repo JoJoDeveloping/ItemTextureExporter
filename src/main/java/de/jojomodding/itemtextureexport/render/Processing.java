@@ -18,11 +18,7 @@ import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.Tuple;
 import net.minecraft.util.text.ITextComponent;
 import net.minecraftforge.registries.ForgeRegistries;
-import org.apache.commons.logging.LogFactory;
-import org.apache.logging.log4j.LogManager;
 
-import javax.imageio.ImageIO;
-import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -31,7 +27,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
-import java.util.logging.Logger;
+import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 import java.util.stream.Collector;
@@ -41,8 +37,7 @@ import java.util.stream.Stream;
 public class Processing {
     private final ItemTextureExporter mod;
     private ExportingScreen exportingScreen;
-    private int texSize;
-    private boolean oversize;
+    private Predicate<ItemStack> oversize;
     private File outputFolder;
     private ItemTextureRenderer renderer;
     private Iterator<Map.Entry<ItemStack, Tuple<ResourceLocation, Integer>>> toProcess;
@@ -54,14 +49,14 @@ public class Processing {
         this.exportingScreen = exportingScreen;
         this.mod = mod;
         try {
-            texSize = Integer.parseInt(exportingScreen.getTextureSize());
-            oversize = exportingScreen.isOversize();
-            if (oversize) texSize *= 3;
+            int texSize = Integer.parseInt(exportingScreen.getTextureSize());
             outputFolder = new File(Minecraft.getInstance().gameDir, exportingScreen.getOutputFolder());
             if (outputFolder.isFile() || !(outputFolder.mkdirs() || outputFolder.isDirectory())) {
                 throw new IOException(I18n.format("gui.itemtextureexporter.error.notadir", exportingScreen.getOutputFolder()));
             }
             Pattern pattern = Pattern.compile(exportingScreen.getRegistryNameRegex());
+            Pattern overPattern = Pattern.compile(exportingScreen.getOversizeRegex());
+            oversize = is -> overPattern.asPredicate().test(is.getItem().getRegistryName().toString());
             renderer = new ItemTextureRenderer(Minecraft.getInstance().getItemRenderer(), texSize);
             alreadyProcessed = 0;
 
@@ -103,6 +98,7 @@ public class Processing {
         final int subscript = stackData.getValue().getB();
         final ItemStack stack = stackData.getKey();
         final String fqName = name.toString() + (subscript == 0 ? "" : "_" + subscript);
+        final boolean oversized = oversize.test(stack);
 //        final BufferedImage bi = new BufferedImage(texSize, texSize, BufferedImage.TYPE_4BYTE_ABGR);
 
         mod.getLogger().debug("Exporting Itemstack " + fqName + " with NBT:" + stackData.getKey().getTag());
@@ -112,7 +108,7 @@ public class Processing {
         if (!outputResLoc.mkdir() && !outputResLoc.isDirectory())
             throw new IOException(I18n.format("gui.itemtextureexporter.error.notadir", outputResLoc.getPath()));
         File outputFile = new File(outputResLoc, fqName.substring(fqName.indexOf(':') + 1) + ".png");
-        renderer.renderItemstack(stack, outputFile, oversize);
+        renderer.renderItemstack(stack, outputFile, oversized);
 //        ImageIO.write(bi, "png", outputFile);
         JsonObject object = new JsonObject();
         object.addProperty("registry_name", name.toString());
@@ -124,6 +120,7 @@ public class Processing {
         object.addProperty("display_name_raw", stack.getDisplayName().getUnformattedComponentText());
         object.add("display_name", ITextComponent.Serializer.toJsonTree(stack.getDisplayName()));
         object.add("tooltip", stack.getTooltip(null, ITooltipFlag.TooltipFlags.NORMAL).stream().map(ITextComponent.Serializer::toJsonTree).collect(JsonArray::new, JsonArray::add, JsonArray::addAll));
+        object.addProperty("oversized", oversized);
         descriptorList.add(object);
     }
 

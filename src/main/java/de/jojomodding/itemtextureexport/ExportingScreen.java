@@ -2,34 +2,19 @@ package de.jojomodding.itemtextureexport;
 
 import de.jojomodding.itemtextureexport.render.Processing;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.screen.MainMenuScreen;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.client.gui.widget.button.Button;
-import net.minecraft.client.gui.widget.button.CheckboxButton;
-import net.minecraft.client.gui.widget.list.ExtendedList;
 import net.minecraft.client.resources.I18n;
-import net.minecraft.item.ItemGroup;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.util.NonNullList;
 import net.minecraft.util.text.TranslationTextComponent;
 import net.minecraftforge.fml.client.config.GuiButtonExt;
-import net.minecraftforge.registries.ForgeRegistries;
 import org.lwjgl.opengl.GL11;
-
-import java.util.Map;
-import java.util.Set;
-import java.util.function.Supplier;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 public class ExportingScreen extends Screen {
 
     private ItemTextureExporter mod;
     private Screen lastScreen;
-    private TextFieldWidget textureSize, outputFolder, regnameRegex;
-    private CheckboxButton oversize;
+    private TextFieldWidget textureSize, outputFolder, regnameRegex, oversizeRegex;
     private Button exportButton, exitButton;
     private boolean isProcessing = false;
     private String status = "";
@@ -61,9 +46,12 @@ public class ExportingScreen extends Screen {
         this.addButton(regnameRegex = new TextFieldWidget(font, x = 55 + font.getStringWidth(I18n.format("gui.itemtextureexporter.main.modregex1")),
                                                           56 + 60, Math.max(0, width - x - 20), 16, null, "*"));
         regnameRegex.setText(".*");
-        this.addButton(oversize = new CheckboxButton(55 + font.getStringWidth(I18n.format("gui.itemtextureexporter.main.oversize1")),
-                                                     54 + 100, 20, 20, "", false));
+        this.addButton(oversizeRegex = new TextFieldWidget(font, x = 55 + font.getStringWidth(I18n.format("gui.itemtextureexporter.main.oversize1")),
+                                                           56 + 100, Math.max(0, width - x - 20), 16, null, "^$"));
+        oversizeRegex.setText("^$");
+        oversizeRegex.setMaxStringLength(Integer.MAX_VALUE);
         setProcessing(false);
+        //^:glass$|:heavy_weighted_pressure_plate$aaaaa
     }
 
     public void setStatus(String status) {
@@ -76,12 +64,13 @@ public class ExportingScreen extends Screen {
         regnameRegex.active = !processing;
         exportButton.active = !processing;
         exitButton.active = !processing;
-        oversize.active = !processing;
+        oversizeRegex.active = !processing;
         isProcessing = processing;
         if (processing) {
             textureSize.setValidator(s -> false);
             outputFolder.setValidator(s -> false);
             regnameRegex.setValidator(s -> false);
+            oversizeRegex.setValidator(s -> false);
         } else {
             textureSize.setValidator(s -> {
                 if (s.length() == 0) return true;
@@ -94,6 +83,7 @@ public class ExportingScreen extends Screen {
             });
             outputFolder.setValidator(s -> true);
             regnameRegex.setValidator(s -> true);
+            oversizeRegex.setValidator(s -> true);
             process = null;
         }
     }
@@ -132,8 +122,8 @@ public class ExportingScreen extends Screen {
         return regnameRegex.getText();
     }
 
-    public boolean isOversize() {
-        return oversize.func_212942_a();
+    public String getOversizeRegex() {
+        return oversizeRegex.getText();
     }
 
     public void setProcessing(Processing processing) {

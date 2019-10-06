@@ -1,30 +1,45 @@
-package de.jojomodding.itemtextureexport;
+package de.jojomodding.itemtextureexport.gui;
 
+import de.jojomodding.itemtextureexport.ItemTextureExporter;
 import de.jojomodding.itemtextureexport.render.Processing;
+import de.jojomodding.itemtextureexport.render.WrappedItemStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.client.gui.widget.button.Button;
 import net.minecraft.client.resources.I18n;
+import net.minecraft.item.ItemGroup;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.NonNullList;
 import net.minecraft.util.text.TranslationTextComponent;
 import net.minecraftforge.fml.client.config.GuiButtonExt;
+import net.minecraftforge.registries.ForgeRegistries;
 import org.lwjgl.opengl.GL11;
+
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class ExportingScreen extends Screen {
 
     private ItemTextureExporter mod;
     private Screen lastScreen;
-    private TextFieldWidget textureSize, outputFolder, regnameRegex, oversizeRegex;
-    private Button exportButton, exitButton;
+    private TextFieldWidget textureSize, outputFolder;
+    private Button exportButton, exitButton, configureListButton;
+    private int configureListButtonWidth;
     private boolean isProcessing = false;
     private String status = "";
     private Processing process;
+    private LinkedHashMap<WrappedItemStack, Boolean> stacksToRender;
 
-    protected ExportingScreen(Minecraft mc, Screen last, ItemTextureExporter mod) {
+    public ExportingScreen(Minecraft mc, Screen last, ItemTextureExporter mod) {
         super(new TranslationTextComponent("gui.itemtextureexporter.main"));
         minecraft = mc;
         this.lastScreen = last;
         this.mod = mod;
+        stacksToRender = defaultStacks();
     }
 
     @Override
@@ -43,15 +58,10 @@ public class ExportingScreen extends Screen {
         this.addButton(outputFolder = new TextFieldWidget(font, x = 55 + font.getStringWidth(I18n.format("gui.itemtextureexporter.main.outfolder1")),
                                                           56 + 20, Math.max(0, width - x - 20), 16, null, "export"));
         outputFolder.setText("export");
-        this.addButton(regnameRegex = new TextFieldWidget(font, x = 55 + font.getStringWidth(I18n.format("gui.itemtextureexporter.main.modregex1")),
-                                                          56 + 60, Math.max(0, width - x - 20), 16, null, "*"));
-        regnameRegex.setText(".*");
-        this.addButton(oversizeRegex = new TextFieldWidget(font, x = 55 + font.getStringWidth(I18n.format("gui.itemtextureexporter.main.oversize1")),
-                                                           56 + 100, Math.max(0, width - x - 20), 16, null, "^$"));
-        oversizeRegex.setText("^$");
-        oversizeRegex.setMaxStringLength(Integer.MAX_VALUE);
+        String text = I18n.format("gui.itemtextureexporter.main.configurelist");
+        configureListButtonWidth = font.getStringWidth(text) + 16;
+        this.addButton(configureListButton = new GuiButtonExt(50, 56 + 60, configureListButtonWidth, 20, text, button -> minecraft.displayGuiScreen(new ExtraItemsScreen(this))));
         setProcessing(false);
-        //^:glass$|:heavy_weighted_pressure_plate$aaaaa
     }
 
     public void setStatus(String status) {
@@ -61,16 +71,13 @@ public class ExportingScreen extends Screen {
     public void setProcessing(boolean processing) {
         textureSize.active = !processing;
         outputFolder.active = !processing;
-        regnameRegex.active = !processing;
         exportButton.active = !processing;
         exitButton.active = !processing;
-        oversizeRegex.active = !processing;
+        configureListButton.active = !processing;
         isProcessing = processing;
         if (processing) {
             textureSize.setValidator(s -> false);
             outputFolder.setValidator(s -> false);
-            regnameRegex.setValidator(s -> false);
-            oversizeRegex.setValidator(s -> false);
         } else {
             textureSize.setValidator(s -> {
                 if (s.length() == 0) return true;
@@ -82,8 +89,6 @@ public class ExportingScreen extends Screen {
                 }
             });
             outputFolder.setValidator(s -> true);
-            regnameRegex.setValidator(s -> true);
-            oversizeRegex.setValidator(s -> true);
             process = null;
         }
     }
@@ -103,10 +108,7 @@ public class ExportingScreen extends Screen {
         drawString(font, I18n.format("gui.itemtextureexporter.main.texsize"), 50, 60, 0x00ffffff);
         drawString(font, I18n.format("gui.itemtextureexporter.main.outfolder1"), 50, 60 + 20, 0x00ffffff);
         drawString(font, I18n.format("gui.itemtextureexporter.main.outfolder2"), 50, 60 + 2 * 20, 0x00ffffff);
-        drawString(font, I18n.format("gui.itemtextureexporter.main.modregex1"), 50, 60 + 3 * 20, 0x00ffffff);
-        drawString(font, I18n.format("gui.itemtextureexporter.main.modregex2"), 50, 60 + 4 * 20, 0x00ffffff);
-        drawString(font, I18n.format("gui.itemtextureexporter.main.oversize1"), 50, 60 + 5 * 20, 0x00ffffff);
-        drawString(font, I18n.format("gui.itemtextureexporter.main.oversize2"), 50, 60 + 6 * 20, 0x00ffffff);
+        drawString(font, I18n.format("gui.itemtextureexporter.main.configured", stacksToRender.size()), 52 + configureListButtonWidth, 60 + 3 * 20 + 3, 0x00ffffff);
         super.render(mouseX, mouseY, partialT);
     }
 
@@ -118,14 +120,6 @@ public class ExportingScreen extends Screen {
         return outputFolder.getText();
     }
 
-    public String getRegistryNameRegex() {
-        return regnameRegex.getText();
-    }
-
-    public String getOversizeRegex() {
-        return oversizeRegex.getText();
-    }
-
     public void setProcessing(Processing processing) {
         this.process = processing;
         setProcessing(true);
@@ -135,5 +129,32 @@ public class ExportingScreen extends Screen {
     @Override
     public boolean shouldCloseOnEsc() {
         return !isProcessing;
+    }
+
+    public LinkedHashMap<WrappedItemStack, Boolean> stacksToRender() {
+        return stacksToRender;
+    }
+
+    public void setStacksToRender(LinkedHashMap<WrappedItemStack, Boolean> stacksToRender) {
+        this.stacksToRender = stacksToRender;
+    }
+
+    public static LinkedHashMap<WrappedItemStack, Boolean> defaultStacks() {
+        return Stream.concat(
+                ForgeRegistries.ITEMS.getEntries().stream().
+                        map(Map.Entry::getValue).
+                                             map(ItemStack::new),
+                allCreativeTabs()).collect(Collectors.toMap(WrappedItemStack::new, $ -> Boolean.FALSE, (a, b) -> a, LinkedHashMap::new));
+    }
+
+    private static Stream<ItemStack> allCreativeTabs() {
+        NonNullList<ItemStack> list = NonNullList.create();
+        for (ItemGroup group : ItemGroup.GROUPS) {
+            if (ItemGroup.HOTBAR == group || ItemGroup.SEARCH == group) {
+                continue;
+            }
+            group.fill(list);
+        }
+        return list.stream();
     }
 }

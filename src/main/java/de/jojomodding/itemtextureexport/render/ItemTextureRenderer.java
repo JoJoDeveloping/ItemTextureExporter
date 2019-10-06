@@ -50,6 +50,8 @@ public class ItemTextureRenderer implements Closeable {
         RenderHelper.enableGUIStandardItemLighting();
         GlStateManager.enableRescaleNormal();
         renderer.renderItemIntoGUI(is, 0, 0);
+        RenderHelper.disableStandardItemLighting();
+        GlStateManager.disableRescaleNormal();
 
 
         GlStateManager.matrixMode(GL11.GL_PROJECTION);

@@ -144,17 +144,17 @@ public class ItemStackList extends ExtendedList<ItemStackList.Entry> {
         public void renderMouseOver(int entryIdx, int top, int left, int entryWidth, int entryHeight, int mouseX, int mouseY, boolean p_194999_5_, float partialTicks) {
             mouseX -= left;
             mouseY -= top;
-            GlStateManager.disableDepthTest();
             if (mouseX >= 2 && mouseX < 18 && mouseY >= 2 && mouseY < 18) {
                 parent.renderTooltip(is.stack, mouseX + left, mouseY + top);
             } else if (oversized.isHovered()) {
                 parent.renderTooltip(I18n.format("gui.itemtextureexporter.extra.oversized"), mouseX + left, mouseY + top);
             } else if (deleter.isHovered()) {
                 parent.renderTooltip(I18n.format("gui.itemtextureexporter.extra.delete"), mouseX + left, mouseY + top);
+            } else if (nbt.isHovered()) {
+                parent.renderTooltip(I18n.format("gui.itemtextureexporter.extra.nbt"), mouseX + left, mouseY + top);
             }
             //render tooltip corrupts GL state, fix it
             GlStateManager.disableLighting();
-            GlStateManager.enableDepthTest();
         }
 
 

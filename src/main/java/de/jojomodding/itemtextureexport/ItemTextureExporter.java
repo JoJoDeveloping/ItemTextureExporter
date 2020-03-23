@@ -27,14 +27,13 @@ public class ItemTextureExporter
         //Make sure the mod being absent on the other network side does not cause the client to display the server as incompatible
         ModLoadingContext.get().registerExtensionPoint(ExtensionPoint.DISPLAYTEST, () -> Pair.of(() -> FMLNetworkConstants.IGNORESERVERONLY, (a, b) -> true));
 
-        DistExecutor.callWhenOn(Dist.DEDICATED_SERVER, () -> () -> {
+        DistExecutor.runWhenOn(Dist.DEDICATED_SERVER, () -> () -> {
             LOGGER.error("The Item Render Exporter mod can only work on the client because the server does not have the required assets!");
-            return null;
         });
-        DistExecutor.callWhenOn(Dist.CLIENT, () -> () -> {
+        DistExecutor.runWhenOn(Dist.CLIENT, () -> () -> {
             if(!GLX.isUsingFBOs()){
                 LOGGER.error("The Item Render Exporter mod requires FBOs, your PC doesn't support them.");
-                return null;
+                return;
             }
 
             ModLoadingContext.get().registerExtensionPoint(ExtensionPoint.CONFIGGUIFACTORY, () -> (minecraft, screen) -> new ExportingScreen(minecraft, screen, this));
@@ -51,7 +50,6 @@ public class ItemTextureExporter
                         }
                     });
             }
-            return null;
         });
     }
 
